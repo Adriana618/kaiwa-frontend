@@ -59,6 +59,7 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
     throw new Error(body?.detail || `API error: ${res.status}`);
   }
 
+  if (res.status === 204) return undefined as T;
   return res.json();
 }
 
@@ -108,6 +109,10 @@ export const api = {
     apiFetch<any>('/cards', { method: 'POST', token, body: JSON.stringify(data) }),
   getCard: (token: string, cardId: string) =>
     apiFetch<any>(`/cards/${cardId}`, { token }),
+  getDeckCards: (token: string, deckId: string) =>
+    apiFetch<any[]>(`/decks/${deckId}/cards`, { token }),
+  deleteCard: (token: string, cardId: string) =>
+    apiFetch<void>(`/cards/${cardId}`, { method: 'DELETE', token }),
 
   // Images
   searchImages: (token: string, query: string, count = 6) =>

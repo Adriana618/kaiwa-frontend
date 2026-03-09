@@ -1,23 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api';
-import type { Deck } from '@/types';
+import CardImage from '@/components/cards/CardImage';
+import type { CardWithState, Deck } from '@/types';
 
 export default function CardsPage() {
   const { token, language } = useAppStore();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewDeck, setShowNewDeck] = useState(false);
+  const [expandedDeck, setExpandedDeck] = useState<string | null>(null);
   const [showAddCard, setShowAddCard] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadDecks = useCallback(async () => {
     if (!token) { setLoading(false); return; }
-    loadDecks();
-  }, [token, language]);
-
-  async function loadDecks() {
     try {
       const data = await api.getDecks(token, language);
       setDecks(data);
@@ -26,7 +24,11 @@ export default function CardsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [token, language]);
+
+  useEffect(() => {
+    loadDecks();
+  }, [loadDecks]);
 
   return (
     <div className="space-y-8">
@@ -68,39 +70,192 @@ export default function CardsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {decks.map((deck) => (
-            <div
+            <DeckItem
               key={deck.id}
-              className="bg-surface border border-border rounded-xl p-5 hover:border-accent/40 transition-colors"
-            >
-              <h3 className="font-medium text-sm">{deck.name}</h3>
-              {deck.description && (
-                <p className="text-muted text-xs mt-1 line-clamp-2">{deck.description}</p>
-              )}
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-xs text-muted">{deck.language.toUpperCase()}</span>
-                <div className="flex gap-3">
-                  <BatchImageButton token={token} deckId={deck.id} />
-                  <button
-                    onClick={() => setShowAddCard(showAddCard === deck.id ? null : deck.id)}
-                    className="text-xs text-accent hover:underline"
-                  >
-                    + Add Card
-                  </button>
-                </div>
-              </div>
-              {showAddCard === deck.id && (
-                <AddCardForm
-                  token={token}
-                  deckId={deck.id}
-                  onDone={() => setShowAddCard(null)}
-                />
-              )}
-            </div>
+              deck={deck}
+              token={token}
+              expanded={expandedDeck === deck.id}
+              onToggle={() => setExpandedDeck(expandedDeck === deck.id ? null : deck.id)}
+              showAddCard={showAddCard === deck.id}
+              onToggleAddCard={() => setShowAddCard(showAddCard === deck.id ? null : deck.id)}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function DeckItem({
+  deck, token, expanded, onToggle, showAddCard, onToggleAddCard,
+}: {
+  deck: Deck; token: string; expanded: boolean; onToggle: () => void;
+  showAddCard: boolean; onToggleAddCard: () => void;
+}) {
+  const [cards, setCards] = useState<CardWithState[]>([]);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (expanded && !loaded && token) {
+      setLoadingCards(true);
+      api.getDeckCards(token, deck.id)
+        .then((data) => { setCards(data); setLoaded(true); })
+        .catch(() => {})
+        .finally(() => setLoadingCards(false));
+    }
+  }, [expanded, loaded, token, deck.id]);
+
+  const refreshCards = useCallback(() => {
+    if (!token) return;
+    api.getDeckCards(token, deck.id)
+      .then((data) => { setCards(data); setLoaded(true); })
+      .catch(() => {});
+  }, [token, deck.id]);
+
+  return (
+    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+      {/* Deck header */}
+      <div
+        className="flex items-center justify-between p-5 cursor-pointer hover:bg-background/30 transition-colors"
+        onClick={onToggle}
+      >
+        <div className="flex items-center gap-3">
+          <svg
+            className={`w-4 h-4 text-muted transition-transform ${expanded ? 'rotate-90' : ''}`}
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+          <div>
+            <h3 className="font-medium text-sm">{deck.name}</h3>
+            {deck.description && (
+              <p className="text-muted text-xs mt-0.5 line-clamp-1">{deck.description}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+          <span className="text-xs text-muted">{deck.language.toUpperCase()}</span>
+          {loaded && <span className="text-xs text-muted">{cards.length} cards</span>}
+          <BatchImageButton token={token} deckId={deck.id} />
+          <button
+            onClick={onToggleAddCard}
+            className="text-xs text-accent hover:underline"
+          >
+            + Add
+          </button>
+        </div>
+      </div>
+
+      {/* Add card form */}
+      {showAddCard && (
+        <div className="px-5 pb-4">
+          <AddCardForm
+            token={token}
+            deckId={deck.id}
+            onDone={() => { onToggleAddCard(); refreshCards(); }}
+          />
+        </div>
+      )}
+
+      {/* Card list */}
+      {expanded && (
+        <div className="border-t border-border">
+          {loadingCards ? (
+            <p className="text-muted text-xs p-5">Loading cards...</p>
+          ) : cards.length === 0 ? (
+            <p className="text-muted text-xs p-5 text-center">No cards in this deck yet.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {cards.map((card) => (
+                <CardRow key={card.id} card={card} token={token} onDeleted={refreshCards} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CardRow({ card, token, onDeleted }: { card: CardWithState; token: string; onDeleted: () => void }) {
+  const [deleting, setDeleting] = useState(false);
+
+  const state = card.card_state;
+  const statusColor = !state || state.status === 'new'
+    ? 'text-accent'
+    : state.status === 'learning'
+      ? 'text-warning'
+      : 'text-success';
+
+  async function handleDelete() {
+    if (!confirm('Delete this card?')) return;
+    setDeleting(true);
+    try {
+      await api.deleteCard(token, card.id);
+      onDeleted();
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-3 hover:bg-background/30 transition-colors group">
+      {/* Image thumbnail */}
+      {card.front.image_url ? (
+        <CardImage imageUrl={card.front.image_url} alt={card.front.text} size="sm" />
+      ) : (
+        <div className="w-10 h-10 rounded-lg bg-background border border-border flex-shrink-0" />
+      )}
+
+      {/* Front */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-medium truncate">{card.front.text}</span>
+          {card.front.reading && (
+            <span className="text-xs text-muted flex-shrink-0">{card.front.reading}</span>
+          )}
+        </div>
+        <p className="text-xs text-muted truncate mt-0.5">{card.back.text}</p>
+      </div>
+
+      {/* Tags */}
+      {card.tags && card.tags.length > 0 && (
+        <div className="hidden sm:flex gap-1 flex-shrink-0">
+          {card.tags.slice(0, 2).map((tag) => (
+            <span key={tag} className="px-1.5 py-0.5 bg-background border border-border rounded text-[10px] text-muted">
+              {tag}
+            </span>
+          ))}
+          {card.tags.length > 2 && (
+            <span className="text-[10px] text-muted">+{card.tags.length - 2}</span>
+          )}
+        </div>
+      )}
+
+      {/* SRS status */}
+      <div className="flex-shrink-0 text-right">
+        <span className={`text-[10px] font-medium ${statusColor}`}>
+          {state?.status || 'new'}
+        </span>
+        {state && state.review_count > 0 && (
+          <p className="text-[10px] text-muted">{state.review_count} reviews</p>
+        )}
+      </div>
+
+      {/* Delete */}
+      <button
+        onClick={handleDelete}
+        disabled={deleting}
+        className="opacity-0 group-hover:opacity-100 text-muted hover:text-red-400 transition-all flex-shrink-0"
+        title="Delete card"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -185,9 +340,9 @@ function BatchImageButton({ token, deckId }: { token: string; deckId: string }) 
     }
   }
 
-  if (status === 'running') return <span className="text-xs text-muted animate-pulse">Assigning images...</span>;
+  if (status === 'running') return <span className="text-xs text-muted animate-pulse">Assigning...</span>;
   if (status === 'done' && result) {
-    return <span className="text-xs text-success">{result.assigned} images assigned</span>;
+    return <span className="text-xs text-success">{result.assigned} assigned</span>;
   }
   return (
     <button onClick={handleBatch} className="text-xs text-muted hover:text-accent transition-colors">
@@ -234,7 +389,7 @@ function AddCardForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 pt-4 border-t border-border space-y-3">
+    <form onSubmit={handleSubmit} className="pt-4 border-t border-border space-y-3">
       <input
         type="text"
         value={front}
