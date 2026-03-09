@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api';
 import CardImage from '@/components/cards/CardImage';
+import ImageSearch from '@/components/cards/ImageSearch';
 import type { CardWithState, Deck } from '@/types';
 
 export default function CardsPage() {
@@ -182,6 +183,9 @@ function DeckItem({
 
 function CardRow({ card, token, onDeleted }: { card: CardWithState; token: string; onDeleted: () => void }) {
   const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+  const [showImageSearch, setShowImageSearch] = useState(false);
+  const [imageUrl, setImageUrl] = useState(card.front.image_url || '');
 
   const state = card.card_state;
   const statusColor = !state || state.status === 'new'
@@ -193,70 +197,97 @@ function CardRow({ card, token, onDeleted }: { card: CardWithState; token: strin
   async function handleDelete() {
     if (!confirm('Delete this card?')) return;
     setDeleting(true);
+    setError('');
     try {
       await api.deleteCard(token, card.id);
       onDeleted();
-    } catch {
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete');
       setDeleting(false);
     }
   }
 
   return (
-    <div className="flex items-center gap-4 px-5 py-3 hover:bg-background/30 transition-colors group">
-      {/* Image thumbnail */}
-      {card.front.image_url ? (
-        <CardImage imageUrl={card.front.image_url} alt={card.front.text} size="sm" />
-      ) : (
-        <div className="w-10 h-10 rounded-lg bg-background border border-border flex-shrink-0" />
-      )}
-
-      {/* Front */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium truncate">{card.front.text}</span>
-          {card.front.reading && (
-            <span className="text-xs text-muted flex-shrink-0">{card.front.reading}</span>
+    <>
+      <div className="flex items-center gap-4 px-5 py-3 hover:bg-background/30 transition-colors group">
+        {/* Image thumbnail — click to open image search */}
+        <button
+          onClick={() => setShowImageSearch(true)}
+          className="flex-shrink-0 rounded-lg overflow-hidden border border-border hover:border-accent/50 transition-colors"
+          title="Change image"
+        >
+          {imageUrl ? (
+            <CardImage imageUrl={imageUrl} alt={card.front.text} size="sm" />
+          ) : (
+            <div className="w-10 h-10 bg-background flex items-center justify-center">
+              <svg className="w-4 h-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+            </div>
           )}
-        </div>
-        <p className="text-xs text-muted truncate mt-0.5">{card.back.text}</p>
-      </div>
+        </button>
 
-      {/* Tags */}
-      {card.tags && card.tags.length > 0 && (
-        <div className="hidden sm:flex gap-1 flex-shrink-0">
-          {card.tags.slice(0, 2).map((tag) => (
-            <span key={tag} className="px-1.5 py-0.5 bg-background border border-border rounded text-[10px] text-muted">
-              {tag}
-            </span>
-          ))}
-          {card.tags.length > 2 && (
-            <span className="text-[10px] text-muted">+{card.tags.length - 2}</span>
-          )}
+        {/* Front */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-medium truncate">{card.front.text}</span>
+            {card.front.reading && (
+              <span className="text-xs text-muted flex-shrink-0">{card.front.reading}</span>
+            )}
+          </div>
+          <p className="text-xs text-muted truncate mt-0.5">{card.back.text}</p>
+          {error && <p className="text-red-400 text-[10px] mt-0.5">{error}</p>}
         </div>
-      )}
 
-      {/* SRS status */}
-      <div className="flex-shrink-0 text-right">
-        <span className={`text-[10px] font-medium ${statusColor}`}>
-          {state?.status || 'new'}
-        </span>
-        {state && state.review_count > 0 && (
-          <p className="text-[10px] text-muted">{state.review_count} reviews</p>
+        {/* Tags */}
+        {card.tags && card.tags.length > 0 && (
+          <div className="hidden sm:flex gap-1 flex-shrink-0">
+            {card.tags.slice(0, 2).map((tag) => (
+              <span key={tag} className="px-1.5 py-0.5 bg-background border border-border rounded text-[10px] text-muted">
+                {tag}
+              </span>
+            ))}
+            {card.tags.length > 2 && (
+              <span className="text-[10px] text-muted">+{card.tags.length - 2}</span>
+            )}
+          </div>
         )}
+
+        {/* SRS status */}
+        <div className="flex-shrink-0 text-right">
+          <span className={`text-[10px] font-medium ${statusColor}`}>
+            {state?.status || 'new'}
+          </span>
+          {state && state.review_count > 0 && (
+            <p className="text-[10px] text-muted">{state.review_count} reviews</p>
+          )}
+        </div>
+
+        {/* Delete */}
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="opacity-0 group-hover:opacity-100 text-muted hover:text-red-400 transition-all flex-shrink-0"
+          title="Delete card"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </div>
 
-      {/* Delete */}
-      <button
-        onClick={handleDelete}
-        disabled={deleting}
-        className="opacity-0 group-hover:opacity-100 text-muted hover:text-red-400 transition-all flex-shrink-0"
-        title="Delete card"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-    </div>
+      {/* Image search modal */}
+      {showImageSearch && (
+        <ImageSearch
+          cardId={card.id}
+          initialQuery={card.back.text}
+          onSelect={(url) => { setImageUrl(url); setShowImageSearch(false); onDeleted(); }}
+          onClose={() => setShowImageSearch(false)}
+        />
+      )}
+    </>
   );
 }
 

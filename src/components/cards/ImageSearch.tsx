@@ -55,7 +55,7 @@ export default function ImageSearch({ cardId, initialQuery = '', onSelect, onClo
       });
       onSelect(result.image_url);
     } catch {
-      onSelect(photo.url_small);
+      // Don't set URL on failure — would create frontend/backend inconsistency
     } finally {
       setAssigning(null);
     }
