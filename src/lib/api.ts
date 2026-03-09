@@ -26,8 +26,9 @@ async function tryRefreshToken(): Promise<string | null> {
 
 async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, ...fetchOptions } = options;
+  const isFormData = typeof FormData !== 'undefined' && fetchOptions.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(fetchOptions.headers as Record<string, string> || {}),
   };
@@ -115,6 +116,10 @@ export const api = {
     apiFetch<{ image_url: string; photographer?: string; photographer_url?: string }>(`/images/assign/${cardId}`, {
       method: 'POST', token, body: JSON.stringify({ query_override: queryOverride || null }),
     }),
+  assignImageDirect: (token: string, cardId: string, photo: { photo_url: string; photo_id?: string; photographer?: string; photographer_url?: string }) =>
+    apiFetch<{ image_url: string; photographer?: string; photographer_url?: string }>(`/images/assign/${cardId}`, {
+      method: 'POST', token, body: JSON.stringify(photo),
+    }),
   batchAssignImages: (token: string, data: { card_ids?: string[]; deck_id?: string }) =>
     apiFetch<{ assigned: number; skipped: number; errors: number }>('/images/batch', {
       method: 'POST', token, body: JSON.stringify(data),
@@ -124,7 +129,6 @@ export const api = {
     formData.append('file', file);
     return apiFetch<{ image_url: string }>(`/images/upload/${cardId}`, {
       method: 'POST', token,
-      headers: {},  // Let browser set content-type with boundary
       body: formData as any,
     });
   },

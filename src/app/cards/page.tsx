@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api';
-import ImageSearch from '@/components/cards/ImageSearch';
 import type { Deck } from '@/types';
 
 export default function CardsPage() {

@@ -47,16 +47,19 @@ export default function ImageSearch({ cardId, initialQuery = '', onSelect, onClo
     if (!token) return;
     setAssigning(photo.id);
     try {
-      // Use the Unsplash URL as query override to assign the specific photo
-      const result = await api.assignImage(token, cardId, query.trim() || undefined);
+      const result = await api.assignImageDirect(token, cardId, {
+        photo_url: photo.url_small,
+        photo_id: photo.id,
+        photographer: photo.photographer,
+        photographer_url: photo.photographer_url,
+      });
       onSelect(result.image_url);
     } catch {
-      // fallback: just use the URL directly
       onSelect(photo.url_small);
     } finally {
       setAssigning(null);
     }
-  }, [token, cardId, query, onSelect]);
+  }, [token, cardId, onSelect]);
 
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
