@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 interface AppState {
   token: string;
