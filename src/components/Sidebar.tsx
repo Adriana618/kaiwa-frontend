@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 
 const LANGUAGES = [
@@ -64,14 +65,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { language, setLanguage, user, logout } = useAppStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   function handleLogout() {
     logout();
     router.push('/login');
   }
 
-  return (
-    <aside className="fixed left-0 top-0 h-full w-56 bg-surface border-r border-border flex flex-col z-10">
+  const sidebarContent = (
+    <>
       <div className="p-6 border-b border-border">
         <h1 className="text-xl font-semibold tracking-tight">
           <span className="text-accent">Kaiwa</span>
@@ -87,6 +89,7 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                     isActive
                       ? 'bg-accent/10 text-accent'
@@ -125,6 +128,43 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-30 p-2 bg-surface border border-border rounded-lg"
+        aria-label="Open menu"
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+          <path d="M3 6h18M3 12h18M3 18h18" />
+        </svg>
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile sidebar */}
+      <aside
+        className={`md:hidden fixed left-0 top-0 h-full w-56 bg-surface border-r border-border flex flex-col z-40 transition-transform duration-200 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-56 bg-surface border-r border-border flex-col z-10">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

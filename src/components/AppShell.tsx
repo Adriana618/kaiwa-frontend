@@ -67,8 +67,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar />
-      <main className="ml-56 min-h-screen">
-        <div className="max-w-5xl mx-auto px-8 py-8">
+      <main className="md:ml-56 min-h-screen">
+        <div className="max-w-5xl mx-auto px-4 py-14 md:px-8 md:py-8">
           {children}
         </div>
       </main>
