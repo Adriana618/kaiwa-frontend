@@ -2,19 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, useHydration } from '@/lib/store';
 import { api } from '@/lib/api';
 import Sidebar from './Sidebar';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const hydrated = useHydration();
   const { token, setUser, setToken } = useAppStore();
   const [ready, setReady] = useState(false);
 
   const isLoginPage = pathname === '/login';
 
   useEffect(() => {
+    if (!hydrated) return;
+
     async function init() {
       if (token) {
         try {
@@ -28,7 +31,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       setReady(true);
     }
     init();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for token refresh events from the API layer
+  useEffect(() => {
+    function onTokenRefreshed(e: Event) {
+      const newToken = (e as CustomEvent).detail;
+      if (newToken) setToken(newToken);
+    }
+    window.addEventListener('kaiwa:token-refreshed', onTokenRefreshed);
+    return () => window.removeEventListener('kaiwa:token-refreshed', onTokenRefreshed);
+  }, [setToken]);
 
   useEffect(() => {
     if (!ready) return;
@@ -37,7 +50,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [ready, token, isLoginPage, router]);
 
-  if (!ready) {
+  if (!hydrated || !ready) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted text-sm">Loading...</p>
