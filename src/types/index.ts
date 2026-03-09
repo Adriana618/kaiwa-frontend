@@ -2,7 +2,18 @@ export interface Card {
   id: string;
   deck_id: string;
   card_type: string;
-  front: { text: string; reading?: string; audio_url?: string; image_url?: string };
+  front: {
+    text: string;
+    reading?: string;
+    audio_url?: string;
+    image_url?: string;
+    image_unsplash?: {
+      id?: string;
+      photographer?: string;
+      photographer_url?: string;
+      url_regular?: string;
+    };
+  };
   back: { text: string; reading?: string; examples?: string[] };
   tags: string[];
   created_at: string;

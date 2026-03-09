@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api';
+import CardImage from '@/components/cards/CardImage';
 import type { CardWithState, ReviewResult } from '@/types';
 
 const RATINGS = [
@@ -170,6 +171,14 @@ export default function ReviewPage() {
         <div className="bg-surface border border-border rounded-2xl min-h-[320px] flex flex-col items-center justify-center p-8 transition-all">
           {!flipped ? (
             <div className="text-center space-y-4">
+              {currentCard.front.image_url && (
+                <CardImage
+                  imageUrl={currentCard.front.image_url}
+                  alt={currentCard.front.text}
+                  size="lg"
+                  unsplash={currentCard.front.image_unsplash}
+                />
+              )}
               <p className="text-3xl font-semibold">{currentCard.front.text}</p>
               {currentCard.front.reading && (
                 <p className="text-lg text-muted">{currentCard.front.reading}</p>
@@ -180,13 +189,20 @@ export default function ReviewPage() {
             <div className="text-center space-y-4">
               <p className="text-lg text-muted">{currentCard.front.text}</p>
               <div className="border-t border-border w-16 mx-auto" />
+              {currentCard.front.image_url && (
+                <CardImage
+                  imageUrl={currentCard.front.image_url}
+                  alt={currentCard.back.text}
+                  size="sm"
+                />
+              )}
               <p className="text-2xl font-semibold">{currentCard.back.text}</p>
               {currentCard.back.reading && (
                 <p className="text-base text-muted">{currentCard.back.reading}</p>
               )}
               {currentCard.back.examples && currentCard.back.examples.length > 0 && (
                 <div className="mt-4 space-y-1">
-                  {currentCard.back.examples.map((ex, i) => (
+                  {currentCard.back.examples.map((ex: string, i: number) => (
                     <p key={i} className="text-sm text-muted/70">{ex}</p>
                   ))}
                 </div>

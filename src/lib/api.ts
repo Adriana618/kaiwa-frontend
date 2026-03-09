@@ -108,6 +108,29 @@ export const api = {
   getCard: (token: string, cardId: string) =>
     apiFetch<any>(`/cards/${cardId}`, { token }),
 
+  // Images
+  searchImages: (token: string, query: string, count = 6) =>
+    apiFetch<any[]>(`/images/search?query=${encodeURIComponent(query)}&count=${count}`, { token }),
+  assignImage: (token: string, cardId: string, queryOverride?: string) =>
+    apiFetch<{ image_url: string; photographer?: string; photographer_url?: string }>(`/images/assign/${cardId}`, {
+      method: 'POST', token, body: JSON.stringify({ query_override: queryOverride || null }),
+    }),
+  batchAssignImages: (token: string, data: { card_ids?: string[]; deck_id?: string }) =>
+    apiFetch<{ assigned: number; skipped: number; errors: number }>('/images/batch', {
+      method: 'POST', token, body: JSON.stringify(data),
+    }),
+  uploadImage: (token: string, cardId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch<{ image_url: string }>(`/images/upload/${cardId}`, {
+      method: 'POST', token,
+      headers: {},  // Let browser set content-type with boundary
+      body: formData as any,
+    });
+  },
+  deleteImage: (token: string, cardId: string) =>
+    apiFetch<void>(`/images/${cardId}`, { method: 'DELETE', token }),
+
   // Recommendations
   getRecommendations: (token: string, language: string) =>
     apiFetch<any[]>(`/immersion/recommend?language=${language}`, { token }),

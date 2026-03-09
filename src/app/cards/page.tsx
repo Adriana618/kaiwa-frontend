@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api';
+import ImageSearch from '@/components/cards/ImageSearch';
 import type { Deck } from '@/types';
 
 export default function CardsPage() {
@@ -80,12 +81,15 @@ export default function CardsPage() {
               )}
               <div className="flex items-center justify-between mt-4">
                 <span className="text-xs text-muted">{deck.language.toUpperCase()}</span>
-                <button
-                  onClick={() => setShowAddCard(showAddCard === deck.id ? null : deck.id)}
-                  className="text-xs text-accent hover:underline"
-                >
-                  + Add Card
-                </button>
+                <div className="flex gap-3">
+                  <BatchImageButton token={token} deckId={deck.id} />
+                  <button
+                    onClick={() => setShowAddCard(showAddCard === deck.id ? null : deck.id)}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    + Add Card
+                  </button>
+                </div>
               </div>
               {showAddCard === deck.id && (
                 <AddCardForm
@@ -163,6 +167,33 @@ function NewDeckForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function BatchImageButton({ token, deckId }: { token: string; deckId: string }) {
+  const [status, setStatus] = useState<'idle' | 'running' | 'done'>('idle');
+  const [result, setResult] = useState<{ assigned: number; skipped: number } | null>(null);
+
+  async function handleBatch() {
+    setStatus('running');
+    try {
+      const res = await api.batchAssignImages(token, { deck_id: deckId });
+      setResult(res);
+      setStatus('done');
+      setTimeout(() => setStatus('idle'), 5000);
+    } catch {
+      setStatus('idle');
+    }
+  }
+
+  if (status === 'running') return <span className="text-xs text-muted animate-pulse">Assigning images...</span>;
+  if (status === 'done' && result) {
+    return <span className="text-xs text-success">{result.assigned} images assigned</span>;
+  }
+  return (
+    <button onClick={handleBatch} className="text-xs text-muted hover:text-accent transition-colors">
+      Auto-images
+    </button>
   );
 }
 
